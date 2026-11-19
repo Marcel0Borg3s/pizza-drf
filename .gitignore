@@ -1,13 +1,21 @@
-
-
-# lixo local (adicionado na limpeza)
+# Virtual environments
 venv/
 .venv/
+
+# Python
 __pycache__/
 *.py[cod]
+
+# Local database
 *.sqlite3
 db.sqlite3
+
+# Local configuration
 .env
+
+# System files
 .DS_Store
 .~lock*
+
+# Logs
 *.log

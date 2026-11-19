@@ -15,5 +15,5 @@ urlpatterns = [
     path('pizzas/<uuid:pk>/', PizzaRetrieveUpdateDestroyView.as_view(), name='pizza-detail-view'),
 
     path('reviews/', ReviewCreatListView.as_view(), name='review-list-view'),
-    path('reviews/<uuid:pk>/', ReviewRetrieveUpdateDestroyView.as_view(), name='review-detail-view'),
+    path('reviews/<int:pk>/', ReviewRetrieveUpdateDestroyView.as_view(), name='review-detail-view'),
 ]
