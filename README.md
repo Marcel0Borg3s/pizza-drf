@@ -238,13 +238,16 @@ curl http://127.0.0.1:8000/pizzas/00000000-0000-0000-0000-000000000000/
 
 - Python 3.13 (o projeto usa `pyproject.toml` com `requires-python = ">=3.13"`)
 - [uv](https://docs.astral.sh/uv/) para instalar as dependências (recomendado)
-- SQLite, já incluído no Python, não precisa instalar banco
+- **PostgreSQL 14+** para o banco principal (SQLite continua como fallback local)
 
 Dependências declaradas:
 
-| Pacote                | Versão 
-| `django`              | `>=6.1.3` 
-| `djangorestframework` | `>=3.18.3` 
+| Pacote | Versão | Para quê |
+| --- | --- | --- |
+| `django` | `>=6.1.3` | framework |
+| `djangorestframework` | `>=3.18.3` | camada REST |
+| `psycopg[binary]` | `>=3.3.9` | driver do PostgreSQL |
+| `python-dotenv` | `>=1.2.4` | ler o `.env` no `settings.py` |
 
 ## Instalação
 
@@ -256,13 +259,23 @@ cd pizza-drf
 # 2. criar o ambiente e instalar as dependências (lê o uv.lock)
 uv sync
 
-# 3. criar as tabelas no SQLite
+# 3. configuração do banco
+cp .env.example .env
+# edite .env com DB_NAME, DB_USER, DB_PASSWORD, DB_HOST e DB_PORT
+# (ou deixe DB_NAME vazio para rodar em SQLite)
+
+# 4. criar o banco no PostgreSQL
+createdb -U postgres pizza_drf
+# sem o cliente psql:
+#   psql -U postgres -c "CREATE DATABASE pizza_drf;"
+
+# 5. criar as tabelas
 uv run python manage.py migrate
 
-# 4. usuário para o /admin/
+# 6. usuário para o /admin/
 uv run python manage.py createsuperuser
 
-# 5. subir o servidor
+# 7. subir o servidor
 uv run python manage.py runserver
 ```
 
@@ -273,13 +286,14 @@ Se preferir `pip` e `venv` em vez do `uv`:
 ```bash
 python3.13 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install "django>=6.1.3" "djangorestframework>=3.18.3"
+pip install "django>=6.1.3" "djangorestframework>=3.18.3" "psycopg[binary]>=3.3.9" "python-dotenv>=1.2.4"
 python manage.py migrate
 python manage.py runserver
 ```
 
-O banco é criado no `migrate` como `db.sqlite3` na raiz do projeto. Esse arquivo (e um
-futuro `.env`) não deve ser versionado: cada pessoa gera o seu.
+O banco é escolhido pelo `.env`: com `DB_NAME` preenchido o Django usa PostgreSQL, sem
+`DB_NAME` ele cai no SQLite (`db.sqlite3` na raiz). O `.env` e o `db.sqlite3` locais não
+devem ser versionados: cada pessoa gera os seus.
 
 ## Como rodar
 
@@ -307,12 +321,30 @@ Tudo em `app/settings.py`, sem variáveis de ambiente nesta fase:
 
 | Item | Valor |
 | --- | --- |
-| Banco | SQLite (`db.sqlite3`) |
+| Banco | PostgreSQL via `DB_*` no `.env` (SQLite se `DB_NAME` estiver vazio) |
 | Idioma | `pt-br` |
 | Fuso | `America/Sao_Paulo` |
 | `DEBUG` | `True` |
 | Email | backend de console (`MAILERS`) |
 | `ALLOWED_HOSTS` | vazio (só funciona em `127.0.0.1`/`localhost`) |
+
+### Migrando dados de um SQLite antigo
+
+O `db.sqlite3` não é lido quando o `.env` aponta para o PostgreSQL. Para levar os dados:
+
+```bash
+# 1. com o .env atual, exporte apenas as tabelas de negócio
+uv run python manage.py dumpdata pizzas clients reviews --indent 2 -o dump.json
+
+# 2. comente as variáveis DB_* no .env (volta para SQLite) e importe o dump
+#    do banco antigo para o novo, invertendo a ordem:
+#    - gere o dump com o .env sem DB_* (SQLite)
+#    - restaure o DB_* e rode:
+uv run python manage.py loaddata dump.json
+```
+
+Em resumo: o `dumpdata` roda no banco de origem e o `loaddata` no de destino, então
+alterne o `.env` entre as duas etapas.
 
 ## Estrutura do projeto
 
