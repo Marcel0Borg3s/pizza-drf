@@ -6,7 +6,7 @@ from reviews.models import Review
 from reviews.serializers import ReviewSerializer
 
 
-class ReviewCreatListView(generics.ListCreateAPIView):
+class ReviewListCreateView(generics.ListCreateAPIView):
     serializer_class = ReviewSerializer
 
     def get_queryset(self):
