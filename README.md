@@ -48,9 +48,9 @@ estas rotas no servidor (nunca direto do navegador, o que dispensa CORS).
 navegador  ──HTTP──▶  pizza_frontend (Django + templates)
                             │
                             └── HTTP servidor-a-servidor ──▶  pizza_drf (esta API)
-                                                                  /pizzas/
-                                                                  /clients/
-                                                                  /reviews/
+                                                                  /api/v1/pizzas/
+                                                                  /api/v1/clients/
+                                                                  /api/v1/reviews/
 ```
 
 Consequências desse desenho:
@@ -92,40 +92,45 @@ Consequências desse desenho:
 
 ## Endpoints
 
-Base local: `http://127.0.0.1:8000`
+Tudo fica sob o prefixo `/api/v1/`. Base local: `http://127.0.0.1:8000`
 
-| Método       | Rota                     | Ação 
-| `GET`        | `/pizzas/`               | lista todas as pizzas 
-| `POST`       | `/pizzas/`               | cria uma pizza 
-| `GET`        | `/pizzas/<uuid>/`        | detalhe de uma pizza 
-| `PATCH`/`PUT`| `/pizzas/<uuid>/`        | atualiza (parcial ou completa) 
-| `DELETE`     | `/pizzas/<uuid>/`        | exclui, se não houver avaliações 
-| `GET`        | `/clients/`              | lista clientes 
-| `POST`       | `/clients/`              | cria cliente 
-| `GET`        | `/clients/<uuid>/`       | detalhe do cliente 
-| `PATCH`/`PUT`| `/clients/<uuid>/`       | atualiza cliente 
-| `DELETE`     | `/clients/<uuid>/`       | exclui cliente 
-| `GET`        | `/reviews/`              | lista avaliações, mais novas primeiro 
-| `GET`        | `/reviews/?pizza=<uuid>` | avaliações de uma pizza 
-| `POST`       | `/reviews/`              | cria avaliação 
-| `GET`        | `/reviews/<int:id>/`     | detalhe da avaliação 
-| `PATCH`/`PUT`| `/reviews/<int:id>/`     | atualiza avaliação 
-| `DELETE`     | `/reviews/<int:id>/`     | exclui avaliação 
-| `GET`        | `/admin/` | admin do Django (requer `createsuperuser`) 
+| Método       | Rota                            | Ação 
+| `GET`        | `/api/v1/pizzas/`               | lista todas as pizzas 
+| `POST`       | `/api/v1/pizzas/`               | cria uma pizza 
+| `GET`        | `/api/v1/pizzas/<uuid>/`        | detalhe de uma pizza 
+| `PATCH`/`PUT`| `/api/v1/pizzas/<uuid>/`        | atualiza (parcial ou completa) 
+| `DELETE`     | `/api/v1/pizzas/<uuid>/`        | exclui, se não houver avaliações 
+| `GET`        | `/api/v1/clients/`              | lista clientes 
+| `POST`       | `/api/v1/clients/`              | cria cliente 
+| `GET`        | `/api/v1/clients/<uuid>/`       | detalhe do cliente 
+| `PATCH`/`PUT`| `/api/v1/clients/<uuid>/`       | atualiza cliente 
+| `DELETE`     | `/api/v1/clients/<uuid>/`       | exclui cliente 
+| `GET`        | `/api/v1/reviews/`              | lista avaliações, mais novas primeiro 
+| `GET`        | `/api/v1/reviews/?pizza=<uuid>` | avaliações de uma pizza 
+| `POST`       | `/api/v1/reviews/`              | cria avaliação 
+| `GET`        | `/api/v1/reviews/<uuid>/`       | detalhe da avaliação (ver aviso abaixo) 
+| `PATCH`/`PUT`| `/api/v1/reviews/<uuid>/`       | atualiza avaliação (ver aviso abaixo) 
+| `DELETE`     | `/api/v1/reviews/<uuid>/`       | exclui avaliação (ver aviso abaixo) 
+| `GET`        | `/admin/` | admin do Django (requer `createsuperuser`), fora do prefixo da API 
+
+Aviso sobre o detalhe de review: `reviews/urls.py` declara a rota como `<uuid:pk>`, mas
+`Review` usa chave primária inteira. A URL resolve, o lookup não: hoje
+`GET /api/v1/reviews/<id>/` responde `404`. Para funcionar, a rota precisa voltar a
+`<int:pk>`.
 
 Detalhes de contrato:
 
 - `id`, `created_at` e `updated_at` são somente leitura, o DRF ignora se forem enviados;
 - não há paginação configurada: `GET` em lista devolve um array JSON direto;
 - não há autenticação: qualquer requisição pode ler e escrever;
-- `POST /reviews/` recebe o UUID da pizza no campo `pizza`.
+- `POST /api/v1/reviews/` recebe o UUID da pizza no campo `pizza`.
 
 ## Exemplos com curl
 
 ### Listar o cardápio
 
 ```bash
-curl http://127.0.0.1:8000/pizzas/
+curl http://127.0.0.1:8000/api/v1/pizzas/
 ```
 
 ```json
@@ -144,7 +149,7 @@ curl http://127.0.0.1:8000/pizzas/
 ### Criar uma pizza
 
 ```bash
-curl -X POST http://127.0.0.1:8000/pizzas/ \
+curl -X POST http://127.0.0.1:8000/api/v1/pizzas/ \
   -H "Content-Type: application/json" \
   -d '{
     "flavor": "Margherita",
@@ -167,7 +172,7 @@ curl -X POST http://127.0.0.1:8000/pizzas/ \
 ### Alterar só o preço
 
 ```bash
-curl -X PATCH http://127.0.0.1:8000/pizzas/e2cab6ee-548f-4408-894b-c158242a5076/ \
+curl -X PATCH http://127.0.0.1:8000/api/v1/pizzas/e2cab6ee-548f-4408-894b-c158242a5076/ \
   -H "Content-Type: application/json" \
   -d '{"price": "54.90"}'
 ```
@@ -175,7 +180,7 @@ curl -X PATCH http://127.0.0.1:8000/pizzas/e2cab6ee-548f-4408-894b-c158242a5076/
 ### Avaliar uma pizza
 
 ```bash
-curl -X POST http://127.0.0.1:8000/reviews/ \
+curl -X POST http://127.0.0.1:8000/api/v1/reviews/ \
   -H "Content-Type: application/json" \
   -d '{
     "pizza": "e2cab6ee-548f-4408-894b-c158242a5076",
@@ -197,25 +202,25 @@ curl -X POST http://127.0.0.1:8000/reviews/ \
 ### Avaliações de uma pizza
 
 ```bash
-curl "http://127.0.0.1:8000/reviews/?pizza=e2cab6ee-548f-4408-894b-c158242a5076"
+curl "http://127.0.0.1:8000/api/v1/reviews/?pizza=e2cab6ee-548f-4408-894b-c158242a5076"
 ```
 
 ### Erros esperados
 
 ```bash
 # excluir pizza que já tem avaliação
-curl -i -X DELETE http://127.0.0.1:8000/pizzas/e2cab6ee-548f-4408-894b-c158242a5076/
+curl -i -X DELETE http://127.0.0.1:8000/api/v1/pizzas/e2cab6ee-548f-4408-894b-c158242a5076/
 # HTTP/1.1 409 Conflict
 # {"detail":"Esta pizza já possui avaliações e não pode ser excluída."}
 
 # nota fora da faixa
-curl -X POST http://127.0.0.1:8000/reviews/ -H "Content-Type: application/json" \
+curl -X POST http://127.0.0.1:8000/api/v1/reviews/ -H "Content-Type: application/json" \
   -d '{"pizza":"e2cab6ee-548f-4408-894b-c158242a5076","stars":9}'
 # HTTP/1.1 400 Bad Request
 # {"stars":["Certifique-se de que este valor seja inferior ou igual a 5."]}
 
 # id inexistente
-curl http://127.0.0.1:8000/pizzas/00000000-0000-0000-0000-000000000000/
+curl http://127.0.0.1:8000/api/v1/pizzas/00000000-0000-0000-0000-000000000000/
 # HTTP/1.1 404 Not Found
 # {"detail":"No Pizza matches the given query."}
 ```
@@ -279,7 +284,7 @@ uv run python manage.py createsuperuser
 uv run python manage.py runserver
 ```
 
-A API fica em `http://127.0.0.1:8000`.
+A API fica em `http://127.0.0.1:8000/api/v1/` (o admin, em `http://127.0.0.1:8000/admin/`).
 
 Se preferir `pip` e `venv` em vez do `uv`:
 
@@ -308,7 +313,7 @@ uv run python manage.py check                  # checagem de configuração
 
 Com o servidor no ar:
 
-- `http://127.0.0.1:8000/pizzas/` responde a lista do cardápio;
+- `http://127.0.0.1:8000/api/v1/pizzas/` responde a lista do cardápio;
 - `http://127.0.0.1:8000/admin/` abre o admin, onde `Pizza`, `Client` e `Review` estão
   registrados e podem ser editados por formulário.
 
@@ -354,22 +359,27 @@ pizza_drf/
 ├── pyproject.toml / uv.lock      # dependências e versões travadas
 ├── app/                          # configuração do projeto
 │   ├── settings.py
-│   ├── urls.py                   # todas as rotas da API
+│   ├── urls.py                   # admin + include com o prefixo /api/v1/
 │   └── asgi.py / wsgi.py
 ├── clients/                      # cadastro de clientes
 │   ├── models.py / serializers.py / views.py / admin.py
+│   ├── urls.py                   # rotas de clients
 │   └── migrations/
 ├── pizzas/                       # cardápio
 │   ├── models.py / serializers.py / views.py / admin.py
+│   ├── urls.py                   # rotas de pizzas
 │   ├── exceptions.py             # erro 409 de pizza em uso
 │   └── migrations/
 └── reviews/                      # avaliações
     ├── models.py / serializers.py / views.py / admin.py
+    ├── urls.py                   # rotas de reviews
     └── migrations/
 ```
 
 Cada app segue sempre o mesmo trio: `models.py` (tabela), `serializers.py` (contrato
-JSON) e `views.py` (rotas). As rotas ficam todas em `app/urls.py`, sem `urls.py` por app.
+JSON) e `views.py` (views). O `app/urls.py` só registra o `admin/` e faz `include` do
+`urls.py` de cada app sob o prefixo `api/v1/`, então o caminho final de cada recurso é
+`/api/v1/<recurso>/`.
 
 ## Testes
 
@@ -378,16 +388,19 @@ Django, então `uv run python manage.py test` roda zero testes.
 
 Ideias para o próximo passo, em ordem de valor:
 
-1. `POST /reviews/` com nota 0, 6 e 5 (limites);
-2. `DELETE /pizzas/<uuid>/` com e sem avaliação (200/204 versus 409);
+1. `POST /api/v1/reviews/` com nota 0, 6 e 5 (limites);
+2. `DELETE /api/v1/pizzas/<uuid>/` com e sem avaliação (200/204 versus 409);
 3. `?pizza=` com UUID válido, inválido e pizza sem avaliações;
-4. `nickname` duplicado em `POST /clients/`.
+4. `nickname` duplicado em `POST /api/v1/clients/`;
+5. detalhe de review em `/api/v1/reviews/<id>/`, que hoje responde `404` por causa do
+   `<uuid:pk>` na rota.
 
 ## Decisões técnicas
 
 - **UUID como chave em `Pizza` e `Client`**, inteiro em `Review`: ids de recurso não
   ficam enumeráveis, e a avaliação ganha uma PK barata, já que é o registro mais
-  numeroso. Por isso a rota de detalhe de review usa `<int:pk>` e as outras `<uuid:pk>`.
+  numeroso. Por isso a rota de detalhe de review precisa de `<int:pk>`, enquanto as
+  outras usam `<uuid:pk>`. Hoje ela está declarada como `<uuid:pk>` e responde `404`.
 - **`on_delete=PROTECT`** em `Review.pizza`: apagar uma pizza nunca leva avaliação junto.
   O preço é responder `409` em vez de deixar o banco estourar erro 500.
 - **Views genéricas do DRF** (`ListCreateAPIView`, `RetrieveUpdateDestroyAPIView`): CRUD
@@ -401,7 +414,7 @@ Ideias para o próximo passo, em ordem de valor:
 ## Limitações e próximos passos
 
 - **Média de avaliações**: ainda não existe. Um endpoint de resumo
-  (`GET /pizzas/<uuid>/reviews/summary/`) com `Avg`/`Count` resolveria, junto com a nota
+  (`GET /api/v1/pizzas/<uuid>/reviews/summary/`) com `Avg`/`Count` resolveria, junto com a nota
   média por pizza no serializer.
 - **Autenticação e permissões**: hoje qualquer um escreve. `IsAuthenticatedOrReadOnly`
   para leitura pública e escrita autenticada é o passo natural, com token ou JWT.
