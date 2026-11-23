@@ -1,13 +1,8 @@
-from rest_framework import generics
+from rest_framework import viewsets
 from clients.models import Client
 from clients.serializers import ClientSerializer
 
 
-class ClientListCreateView(generics.ListCreateAPIView):
-    queryset = Client.objects.all()
-    serializer_class = ClientSerializer
-
-
-class ClientRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class ClientViewSet(viewsets.ModelViewSet):
     queryset = Client.objects.all()
     serializer_class = ClientSerializer
